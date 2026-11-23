@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PillSense - Understand your medicines</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+  :root{
+    --bg:#F2F7F8; --surface:#FFFFFF; --ink:#12303A; --muted:#4F6872; --line:#C9D9DE;
+    --primary:#0E6B73; --primary-ink:#FFFFFF;
+    --morning:#B87500; --morning-bg:#FFF3D6;
+    --afternoon:#1F6FA8; --afternoon-bg:#DDEEFA;
+    --night:#4B3F9E; --night-bg:#E8E5FA;
+    --ok:#1B7A3E; --ok-bg:#DFF3E4;
+    --bad:#B42318; --bad-bg:#FDE4E1;
+    --warn:#9A3412; --warn-bg:#FFE9DD;
+    --focus:#0B57D0;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0E1B20; --surface:#16272E; --ink:#E7F1F3; --muted:#9FB6BE; --line:#2C444D;
+      --primary:#3FB6BF; --primary-ink:#06242A;
+      --morning:#F2B84B; --morning-bg:#3A2D0B;
+      --afternoon:#7FBDEB; --afternoon-bg:#12303F;
+      --night:#B3A9F2; --night-bg:#26214B;
+      --ok:#7BDC9B; --ok-bg:#12331F;
+      --bad:#FF9E94; --bad-bg:#3E1713;
+      --warn:#FFB38F; --warn-bg:#3D2113;
+      --focus:#8AB4F8;
+    }
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Atkinson Hyperlegible",Verdana,"Segoe UI",system-ui,sans-serif;line-height:1.55}
+  :focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+  main{max-width:780px;margin:0 auto;padding:20px 16px 64px}
+  header{padding:12px 0 8px}
+  h1{font-size:2rem;margin:0;letter-spacing:-.01em}
+  h1 span{color:var(--primary)}
+  .tag{margin:2px 0 0;color:var(--muted)}
+  h2{font-size:1.35rem;margin:0 0 10px}
+  h3{font-size:1.1rem;margin:0}
+  section{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:16px}
+  .lbl{display:block;font-weight:700;margin-bottom:6px}
+  select,input[type=text],input[type=password]{
+    font:inherit;color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:10px;padding:12px;width:100%}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row>*{flex:1 1 220px}
+  button{font:inherit;font-weight:700;border-radius:12px;padding:14px 18px;border:2px solid var(--primary);cursor:pointer;
+    background:var(--surface);color:var(--primary);min-height:52px}
+  button.primary{background:var(--primary);color:var(--primary-ink)}
+  button.mode{min-height:68px;font-size:1.1rem}
+  button:disabled{opacity:.55;cursor:not-allowed}
+  .hint{color:var(--muted);font-size:.9rem;margin:6px 0 0}
+  details summary{cursor:pointer;font-weight:700}
+  .status{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+  .status.err{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+  .notice{background:var(--warn-bg);color:var(--warn);border-left:6px solid var(--warn);padding:12px 14px;border-radius:8px;margin:12px 0}
+  .banner{font-size:.9rem;color:var(--muted);margin:0 0 8px}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+
+  /* Camera */
+  .cam{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:3/4;max-height:70vh;margin:0 auto}
+  @media (min-width:700px){.cam{aspect-ratio:4/3}}
+  .cam video,.cam img{width:100%;height:100%;object-fit:cover;display:block}
+  .frame{position:absolute;inset:8% 7.5%;border:3px solid #fff;border-radius:12px;box-shadow:0 0 0 999px rgba(0,0,0,.4);pointer-events:none}
+  .frame-hint{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:#fff;
+    padding:6px 14px;border-radius:999px;font-size:.9rem;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis}
+  .camctl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
+  .camctl>*{flex:1}
+  .shutter{flex:0 0 auto;width:78px;height:78px;border-radius:50%;padding:0;border:6px solid var(--primary);background:#fff;color:#000;font-size:.8rem;min-height:0}
+  .shutter-wrap{flex:0 0 auto;text-align:center}
+  .shutter-wrap small{display:block;color:var(--muted);margin-top:4px}
+
+  /* Day plan */
+  .day{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0 4px}
+  @media (max-width:640px){.day{grid-template-columns:1fr}}
+  .band{border-radius:12px;padding:12px;border:2px solid currentColor;min-height:110px}
+  .band h3{margin-bottom:8px}
+  .band.morning{background:var(--morning-bg);color:var(--morning)}
+  .band.afternoon{background:var(--afternoon-bg);color:var(--afternoon)}
+  .band.night{background:var(--night-bg);color:var(--night)}
+  .band ul{list-style:none;margin:0;padding:0;color:var(--ink)}
+  .band li{padding:6px 0;border-top:1px solid color-mix(in srgb,currentColor 35%,transparent)}
+  .band li:first-child{border-top:0}
+  .band .none{color:var(--muted);font-style:italic}
+  .food{display:block;font-size:.85rem;color:var(--muted)}
+
+  .med{border-top:1px solid var(--line);padding:14px 0}
+  .med:first-of-type{border-top:0}
+  .med .strength{color:var(--muted);font-weight:400}
+  .med p{margin:4px 0}
+  .med ul{margin:6px 0 0 1.1rem;padding:0}
+  .disc{font-size:.92rem;color:var(--muted);border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
+
+  /* Tablet check result */
+  .verdict{border:2px solid currentColor;border-radius:14px;padding:18px;margin:10px 0}
+  .verdict h3{font-size:1.3rem;margin-bottom:6px}
+  .verdict p{margin:4px 0;color:var(--ink)}
+  .verdict.ok{color:var(--ok);background:var(--ok-bg)}
+  .verdict.bad{color:var(--bad);background:var(--bad-bg)}
+  .verdict.warn{color:var(--warn);background:var(--warn-bg)}
+  .check{list-style:none;margin:8px 0 0;padding:0}
+  .check li{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+  .check li:first-child{border-top:0}
+  .tick{flex:0 0 28px;height:28px;border:2px solid var(--line);border-radius:50%;text-align:center;line-height:24px;font-weight:700}
+  .tick.on{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+  footer{margin-top:22px;font-size:.85rem;color:var(--muted)}
+  .visually-hidden{position:absolute;left:-9999px}
+  [hidden]{display:none!important}
+  @media print{ .noprint,header,footer,.actions{display:none!important} body{background:#fff;color:#000} }
+  @media (prefers-reduced-motion: no-preference){ .spin{animation:spin 1s linear infinite;display:inline-block} @keyframes spin{to{transform:rotate(360deg)}} }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Pill<span>Sense</span></h1>
+    <p class="tag" id="tagline"></p>
+  </header>
+
+  <section class="noprint">
+    <label class="lbl" for="lang" id="lblLang"></label>
+    <select id="lang">
+      <option value="English">English</option>
+      <option value="Hindi">हिन्दी (Hindi)</option>
+      <option value="Kannada">ಕನ್ನಡ (Kannada)</option>
+    </select>
+    <div class="row" style="margin-top:14px">
+      <button class="primary mode" id="modeRx" type="button"></button>
+      <button class="mode" id="modeTab" type="button"></button>
+    </div>
+    <p class="hint" id="modeHint"></p>
+  </section>
+
+  <section class="noprint" id="capture" hidden aria-labelledby="capTitle">
+    <h2 id="capTitle"></h2>
+    <div id="camArea" hidden>
+      <div class="cam">
+        <video id="vid" autoplay playsinline muted></video>
+        <div class="frame"></div>
+        <div class="frame-hint" id="frameHint"></div>
+      </div>
+      <div class="camctl">
+        <button id="galleryBtn" type="button"></button>
+        <div class="shutter-wrap"><button class="shutter" id="shot" type="button" aria-label="Take photo"></button><small id="shotLbl"></small></div>
+        <button id="flipBtn" type="button"></button>
+      </div>
+      <div class="actions"><button id="torchBtn" type="button" hidden></button><button id="closeCam" type="button"></button></div>
+    </div>
+    <div id="previewArea" hidden>
+      <div class="cam"><img id="prevImg" alt="Your photo"></div>
+      <div id="qualityMsg" class="notice" hidden></div>
+      <div class="actions"><button class="primary" id="usePhoto" type="button"></button><button id="retake" type="button"></button></div>
+    </div>
+    <div id="startArea">
+      <div class="row">
+        <button class="primary mode" id="openCam" type="button"></button>
+        <button class="mode" id="galleryBtn2" type="button"></button>
+      </div>
+    </div>
+    <input id="fileInput" type="file" accept="image/*" hidden>
+    <canvas id="work" hidden></canvas>
+    <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+  </section>
+
+  <section class="noprint">
+    <details id="settings">
+      <summary>Settings (needed once)</summary>
+      <div style="margin-top:12px">
+        <label class="lbl" for="key">Gemini API key</label>
+        <input id="key" type="password" autocomplete="off" placeholder="Paste your key here">
+        <p class="hint">Get a free key at aistudio.google.com/app/apikey. It stays in this browser only. Do not share this page with your key saved in it.</p>
+        <label class="lbl" for="model" style="margin-top:12px">Model</label>
+        <input id="model" type="text" value="gemini-2.5-flash">
+        <p class="hint">If you see "model not found", type another current Gemini Flash model name.</p>
+      </div>
+    </details>
+    <button id="sample" type="button" style="margin-top:12px">Try the offline sample</button>
+  </section>
+
+  <section id="result" aria-live="polite" hidden></section>
+
+  <footer id="foot"></footer>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+
+  /* ---------- state ---------- */
+  var mode = "rx";                // "rx" = prescription, "tab" = tablet cover
+  var imageData = null;           // {mime,b64,dataUrl}
+  var stream = null, facing = "environment";
+  var rxData = null;              // last prescription result, used for matching
+  var checked = {};               // index -> true (verified tablets)
+  var lastLang = "English";
+
+  /* ---------- helpers ---------- */
+  function h(tag, attrs){
+    var el = document.createElement(tag);
+    if (attrs) for (var k in attrs){ if (k === "class") el.className = attrs[k]; else el.setAttribute(k, attrs[k]); }
+    for (var i = 2; i < arguments.length; i++){
+      var c = arguments[i]; if (c == null || c === "") continue;
+      el.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+    }
+    return el;
+  }
+  function str(v){ return (typeof v === "string") ? v.trim() : ""; }
+  function arr(v){ return Array.isArray(v) ? v.map(str).filter(Boolean) : []; }
+  function store(k, v){ try{ if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v);}catch(e){ return null; } }
+
+  /* ---------- text in 3 languages ---------- */
+  var UI = {
+    English:{
+      tagline:"Scan your prescription or tablet cover. We explain it in simple words.",
+      lang:"Language", scanRx:"Scan prescription", scanTab:"Scan tablet cover",
+      modeHint:"Scan your prescription first, then check each tablet cover against it.",
+      openCam:"Open camera", gallery:"Choose from gallery", closeCam:"Close camera", takePhoto:"Take photo",
+      flip:"Flip camera", light:"Light", useThis:"Use this photo", retake:"Retake", useAnyway:"Use anyway",
+      frameRx:"Keep the paper flat inside the frame", frameTab:"Show the tablet strip or box name inside the frame",
+      capRx:"Add your prescription photo", capTab:"Add a photo of the tablet cover",
+      tooDark:"The photo is too dark. Please turn on a light and retake.", tooBlur:"The photo looks blurry. Please hold still and retake.",
+      camBlocked:"The camera is blocked. Open your browser's site settings, allow the camera, then reload.",
+      noCam:"No camera was found on this device. Please choose a photo from the gallery.",
+      insecure:"The camera works only on a secure page (https or localhost). Please choose a photo from the gallery.",
+      reading:"Reading your photo. This takes a few seconds.", needKey:"Please paste your Gemini API key in Settings first.",
+      morning:"Morning", afternoon:"Afternoon", night:"Night", none:"Nothing",
+      plan:"Your day plan", meds:"Your medicines", ask:"Ask your pharmacist",
+      unclear:"We could not read these clearly. Please check with your pharmacist or retake the photo.",
+      read:"Read aloud", print:"Print or save",
+      disc:"This explanation helps you understand your medicines. It is not medical advice. Please confirm with your doctor or pharmacist.",
+      low:"The photo was hard to read, so please double-check everything with your pharmacist.",
+      empty:"We could not find any medicines in this photo. Please retake it flat, in good light.",
+      checklist:"Your prescription checklist", checkedWord:"Checked",
+      match:"Matches your prescription", notOn:"Not on your prescription", strengthDiff:"Name matches, but the strength is different",
+      tabUnclear:"Could not read this clearly", tabNoLabel:"We cannot identify a tablet without its printed label",
+      tabNoLabelSub:"Please scan the strip or box that shows the medicine name.",
+      askBefore:"Ask your pharmacist before taking it.", retakeOrShow:"Retake the photo or show it to your pharmacist.",
+      usedFor:"What it is for", onLabel:"Printed on the cover", takeAt:"When to take it",
+      needRx:"Your exact timing comes from your doctor. Scan your prescription to see your schedule.",
+      scanAnother:"Scan another cover", done:"Done", noRxMatchHint:"Scan your prescription first to check this tablet against it.",
+      rxStrength:"Your prescription says", coverSays:"The cover says",
+      food:{"before food":"Before food","after food":"After food","with food":"With food","any time":"Any time","unclear":"Check with pharmacist"}
+    },
+    Hindi:{
+      tagline:"अपना पर्चा या दवा का कवर स्कैन करें। हम सरल शब्दों में समझाएँगे।",
+      lang:"भाषा", scanRx:"पर्चा स्कैन करें", scanTab:"दवा का कवर स्कैन करें",
+      modeHint:"पहले अपना पर्चा स्कैन करें, फिर हर दवा के कवर को उससे मिलाएँ।",
+      openCam:"कैमरा खोलें", gallery:"गैलरी से चुनें", closeCam:"कैमरा बंद करें", takePhoto:"फ़ोटो लें",
+      flip:"कैमरा पलटें", light:"लाइट", useThis:"यह फ़ोटो इस्तेमाल करें", retake:"दोबारा लें", useAnyway:"फिर भी इस्तेमाल करें",
+      frameRx:"कागज़ को फ्रेम के अंदर सीधा रखें", frameTab:"दवा के पत्ते या डिब्बे का नाम फ्रेम में दिखाएँ",
+      capRx:"अपने पर्चे की फ़ोटो जोड़ें", capTab:"दवा के कवर की फ़ोटो जोड़ें",
+      tooDark:"फ़ोटो बहुत अंधेरी है। कृपया लाइट जलाकर दोबारा लें।", tooBlur:"फ़ोटो धुंधली है। कृपया हाथ स्थिर रखकर दोबारा लें।",
+      camBlocked:"कैमरा बंद है। ब्राउज़र की साइट सेटिंग में कैमरा अनुमति दें और पेज दोबारा खोलें।",
+      noCam:"इस डिवाइस में कैमरा नहीं मिला। कृपया गैलरी से फ़ोटो चुनें।",
+      insecure:"कैमरा केवल सुरक्षित पेज (https या localhost) पर चलता है। कृपया गैलरी से फ़ोटो चुनें।",
+      reading:"आपकी फ़ोटो पढ़ी जा रही है। कुछ सेकंड लगेंगे।", needKey:"कृपया पहले सेटिंग में अपनी Gemini API कुंजी डालें।",
+      morning:"सुबह", afternoon:"दोपहर", night:"रात", none:"कुछ नहीं",
+      plan:"आपका दिन का कार्यक्रम", meds:"आपकी दवाइयाँ", ask:"फार्मासिस्ट से पूछें",
+      unclear:"ये साफ़ नहीं पढ़े जा सके। कृपया फार्मासिस्ट से पूछें या दोबारा फ़ोटो लें।",
+      read:"सुनें", print:"प्रिंट या सेव करें",
+      disc:"यह जानकारी आपको अपनी दवाइयाँ समझने में मदद करती है। यह चिकित्सा सलाह नहीं है। कृपया अपने डॉक्टर या फार्मासिस्ट से पुष्टि करें।",
+      low:"फ़ोटो पढ़ना कठिन था, इसलिए सब कुछ फार्मासिस्ट से दोबारा जाँच लें।",
+      empty:"इस फ़ोटो में कोई दवा नहीं मिली। कृपया अच्छी रोशनी में सीधी फ़ोटो लें।",
+      checklist:"आपके पर्चे की सूची", checkedWord:"जाँच हो गई",
+      match:"आपके पर्चे से मेल खाती है", notOn:"आपके पर्चे में नहीं है", strengthDiff:"नाम मिलता है, लेकिन मात्रा अलग है",
+      tabUnclear:"यह साफ़ नहीं पढ़ा गया", tabNoLabel:"बिना छपे नाम के हम दवा की पहचान नहीं कर सकते",
+      tabNoLabelSub:"कृपया वह पत्ता या डिब्बा स्कैन करें जिस पर दवा का नाम छपा हो।",
+      askBefore:"लेने से पहले फार्मासिस्ट से पूछें।", retakeOrShow:"दोबारा फ़ोटो लें या फार्मासिस्ट को दिखाएँ।",
+      usedFor:"यह किसलिए है", onLabel:"कवर पर छपा है", takeAt:"कब लेनी है",
+      needRx:"आपका सही समय डॉक्टर तय करते हैं। अपना कार्यक्रम देखने के लिए पर्चा स्कैन करें।",
+      scanAnother:"दूसरा कवर स्कैन करें", done:"हो गया", noRxMatchHint:"इस दवा को मिलाने के लिए पहले अपना पर्चा स्कैन करें।",
+      rxStrength:"आपके पर्चे में लिखा है", coverSays:"कवर पर लिखा है",
+      food:{"before food":"खाने से पहले","after food":"खाने के बाद","with food":"खाने के साथ","any time":"किसी भी समय","unclear":"फार्मासिस्ट से पूछें"}
+    },
+    Kannada:{
+      tagline:"ನಿಮ್ಮ ಚೀಟಿ ಅಥವಾ ಮಾತ್ರೆ ಕವರ್ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ. ನಾವು ಸರಳ ಪದಗಳಲ್ಲಿ ವಿವರಿಸುತ್ತೇವೆ.",
+      lang:"ಭಾಷೆ", scanRx:"ಚೀಟಿ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ", scanTab:"ಮಾತ್ರೆ ಕವರ್ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ",
+      modeHint:"ಮೊದಲು ನಿಮ್ಮ ಚೀಟಿ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ, ನಂತರ ಪ್ರತಿ ಮಾತ್ರೆ ಕವರ್ ಅನ್ನು ಹೋಲಿಸಿ.",
+      openCam:"ಕ್ಯಾಮೆರಾ ತೆರೆಯಿರಿ", gallery:"ಗ್ಯಾಲರಿಯಿಂದ ಆರಿಸಿ", closeCam:"ಕ್ಯಾಮೆರಾ ಮುಚ್ಚಿ", takePhoto:"ಫೋಟೋ ತೆಗೆಯಿರಿ",
+      flip:"ಕ್ಯಾಮೆರಾ ಬದಲಿಸಿ", light:"ಲೈಟ್", useThis:"ಈ ಫೋಟೋ ಬಳಸಿ", retake:"ಮತ್ತೆ ತೆಗೆಯಿರಿ", useAnyway:"ಆದರೂ ಬಳಸಿ",
+      frameRx:"ಕಾಗದವನ್ನು ಚೌಕಟ್ಟಿನೊಳಗೆ ಸಮತಟ್ಟಾಗಿ ಇರಿಸಿ", frameTab:"ಮಾತ್ರೆ ಪಟ್ಟಿ ಅಥವಾ ಡಬ್ಬಿಯ ಹೆಸರನ್ನು ಚೌಕಟ್ಟಿನಲ್ಲಿ ತೋರಿಸಿ",
+      capRx:"ನಿಮ್ಮ ಚೀಟಿಯ ಫೋಟೋ ಸೇರಿಸಿ", capTab:"ಮಾತ್ರೆ ಕವರ್ ಫೋಟೋ ಸೇರಿಸಿ",
+      tooDark:"ಫೋಟೋ ತುಂಬಾ ಕತ್ತಲೆಯಾಗಿದೆ. ದಯವಿಟ್ಟು ಲೈಟ್ ಹಾಕಿ ಮತ್ತೆ ತೆಗೆಯಿರಿ.", tooBlur:"ಫೋಟೋ ಮಂಜಾಗಿದೆ. ದಯವಿಟ್ಟು ಸ್ಥಿರವಾಗಿ ಹಿಡಿದು ಮತ್ತೆ ತೆಗೆಯಿರಿ.",
+      camBlocked:"ಕ್ಯಾಮೆರಾ ನಿರ್ಬಂಧಿತವಾಗಿದೆ. ಬ್ರೌಸರ್ ಸೈಟ್ ಸೆಟ್ಟಿಂಗ್‌ನಲ್ಲಿ ಕ್ಯಾಮೆರಾಗೆ ಅನುಮತಿ ನೀಡಿ, ನಂತರ ಪುಟ ಮರುಲೋಡ್ ಮಾಡಿ.",
+      noCam:"ಈ ಸಾಧನದಲ್ಲಿ ಕ್ಯಾಮೆರಾ ಸಿಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಗ್ಯಾಲರಿಯಿಂದ ಫೋಟೋ ಆರಿಸಿ.",
+      insecure:"ಕ್ಯಾಮೆರಾ ಸುರಕ್ಷಿತ ಪುಟದಲ್ಲಿ (https ಅಥವಾ localhost) ಮಾತ್ರ ಕೆಲಸ ಮಾಡುತ್ತದೆ. ದಯವಿಟ್ಟು ಗ್ಯಾಲರಿಯಿಂದ ಫೋಟೋ ಆರಿಸಿ.",
+      reading:"ನಿಮ್ಮ ಫೋಟೋ ಓದಲಾಗುತ್ತಿದೆ. ಕೆಲವು ಸೆಕೆಂಡುಗಳು ಬೇಕು.", needKey:"ದಯವಿಟ್ಟು ಮೊದಲು ಸೆಟ್ಟಿಂಗ್‌ನಲ್ಲಿ ನಿಮ್ಮ Gemini API ಕೀ ಹಾಕಿ.",
+      morning:"ಬೆಳಿಗ್ಗೆ", afternoon:"ಮಧ್ಯಾಹ್ನ", night:"ರಾತ್ರಿ", none:"ಏನೂ ಇಲ್ಲ",
+      plan:"ನಿಮ್ಮ ದಿನದ ಯೋಜನೆ", meds:"ನಿಮ್ಮ ಔಷಧಿಗಳು", ask:"ಔಷಧಿಕಾರರನ್ನು ಕೇಳಿ",
+      unclear:"ಇವು ಸ್ಪಷ್ಟವಾಗಿ ಓದಲಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಔಷಧಿಕಾರರನ್ನು ಕೇಳಿ ಅಥವಾ ಮತ್ತೆ ಫೋಟೋ ತೆಗೆಯಿರಿ.",
+      read:"ಕೇಳಿ", print:"ಪ್ರಿಂಟ್ ಅಥವಾ ಸೇವ್",
+      disc:"ಈ ವಿವರಣೆ ನಿಮ್ಮ ಔಷಧಿಗಳನ್ನು ಅರ್ಥಮಾಡಿಕೊಳ್ಳಲು ಸಹಾಯ ಮಾಡುತ್ತದೆ. ಇದು ವೈದ್ಯಕೀಯ ಸಲಹೆ ಅಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ವೈದ್ಯರು ಅಥವಾ ಔಷಧಿಕಾರರೊಂದಿಗೆ ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ.",
+      low:"ಫೋಟೋ ಓದಲು ಕಷ್ಟವಾಗಿತ್ತು, ಆದ್ದರಿಂದ ಎಲ್ಲವನ್ನೂ ಔಷಧಿಕಾರರೊಂದಿಗೆ ಮತ್ತೊಮ್ಮೆ ಪರಿಶೀಲಿಸಿ.",
+      empty:"ಈ ಫೋಟೋದಲ್ಲಿ ಯಾವುದೇ ಔಷಧಿ ಕಂಡುಬಂದಿಲ್ಲ. ದಯವಿಟ್ಟು ಉತ್ತಮ ಬೆಳಕಿನಲ್ಲಿ ಮತ್ತೆ ತೆಗೆಯಿರಿ.",
+      checklist:"ನಿಮ್ಮ ಚೀಟಿಯ ಪಟ್ಟಿ", checkedWord:"ಪರಿಶೀಲಿಸಲಾಗಿದೆ",
+      match:"ನಿಮ್ಮ ಚೀಟಿಗೆ ಹೊಂದುತ್ತದೆ", notOn:"ನಿಮ್ಮ ಚೀಟಿಯಲ್ಲಿ ಇಲ್ಲ", strengthDiff:"ಹೆಸರು ಹೊಂದುತ್ತದೆ, ಆದರೆ ಪ್ರಮಾಣ ಬೇರೆ",
+      tabUnclear:"ಇದನ್ನು ಸ್ಪಷ್ಟವಾಗಿ ಓದಲಾಗಲಿಲ್ಲ", tabNoLabel:"ಮುದ್ರಿತ ಹೆಸರಿಲ್ಲದ ಮಾತ್ರೆಯನ್ನು ನಾವು ಗುರುತಿಸಲಾಗುವುದಿಲ್ಲ",
+      tabNoLabelSub:"ದಯವಿಟ್ಟು ಔಷಧದ ಹೆಸರು ಮುದ್ರಿತವಾದ ಪಟ್ಟಿ ಅಥವಾ ಡಬ್ಬಿಯನ್ನು ಸ್ಕ್ಯಾನ್ ಮಾಡಿ.",
+      askBefore:"ತೆಗೆದುಕೊಳ್ಳುವ ಮೊದಲು ಔಷಧಿಕಾರರನ್ನು ಕೇಳಿ.", retakeOrShow:"ಮತ್ತೆ ಫೋಟೋ ತೆಗೆಯಿರಿ ಅಥವಾ ಔಷಧಿಕಾರರಿಗೆ ತೋರಿಸಿ.",
+      usedFor:"ಇದು ಯಾವುದಕ್ಕೆ", onLabel:"ಕವರ್ ಮೇಲೆ ಮುದ್ರಿತ", takeAt:"ಯಾವಾಗ ತೆಗೆದುಕೊಳ್ಳಬೇಕು",
+      needRx:"ನಿಮ್ಮ ನಿಖರ ಸಮಯವನ್ನು ವೈದ್ಯರು ನಿರ್ಧರಿಸುತ್ತಾರೆ. ನಿಮ್ಮ ವೇಳಾಪಟ್ಟಿ ನೋಡಲು ಚೀಟಿ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ.",
+      scanAnother:"ಇನ್ನೊಂದು ಕವರ್ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ", done:"ಮುಗಿದಿದೆ", noRxMatchHint:"ಈ ಮಾತ್ರೆಯನ್ನು ಹೋಲಿಸಲು ಮೊದಲು ನಿಮ್ಮ ಚೀಟಿ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ.",
+      rxStrength:"ನಿಮ್ಮ ಚೀಟಿಯಲ್ಲಿ ಬರೆದಿದೆ", coverSays:"ಕವರ್ ಮೇಲೆ ಬರೆದಿದೆ",
+      food:{"before food":"ಊಟಕ್ಕೆ ಮೊದಲು","after food":"ಊಟದ ನಂತರ","with food":"ಊಟದ ಜೊತೆ","any time":"ಯಾವಾಗ ಬೇಕಾದರೂ","unclear":"ಔಷಧಿಕಾರರನ್ನು ಕೇಳಿ"}
+    }
+  };
+  var SPEECH = {English:"en-IN", Hindi:"hi-IN", Kannada:"kn-IN"};
+  function T(){ return UI[$("lang").value] || UI.English; }
+
+  function applyLang(){
+    var t = T();
+    $("tagline").textContent = t.tagline; $("lblLang").textContent = t.lang;
+    $("modeRx").textContent = t.scanRx; $("modeTab").textContent = t.scanTab; $("modeHint").textContent = t.modeHint;
+    $("openCam").textContent = t.openCam; $("galleryBtn").textContent = t.gallery; $("galleryBtn2").textContent = t.gallery;
+    $("closeCam").textContent = t.closeCam; $("shotLbl").textContent = t.takePhoto; $("flipBtn").textContent = t.flip;
+    $("torchBtn").textContent = t.light; $("usePhoto").textContent = t.useThis; $("retake").textContent = t.retake;
+    $("foot").textContent = t.disc + " Student project, REVA University, Introduction to Design Thinking.";
+    setModeText();
+  }
+  function setModeText(){
+    var t = T();
+    $("capTitle").textContent = mode === "rx" ? t.capRx : t.capTab;
+    $("frameHint").textContent = mode === "rx" ? t.frameRx : t.frameTab;
+  }
+  $("lang").addEventListener("change", applyLang);
+
+  /* ---------- settings storage ---------- */
+  $("key").value = store("ps_key") || "";
+  $("model").value = store("ps_model") || $("model").value;
+  $("key").addEventListener("change", function(){ store("ps_key", $("key").value.trim()); });
+  $("model").addEventListener("change", function(){ store("ps_model", $("model").value.trim()); });
+  if (!$("key").value) $("settings").open = true;
+
+  /* ---------- status ---------- */
+  function status(msg, isErr, busy){
+    var s = $("status"); s.hidden = false; s.className = "status" + (isErr ? " err" : ""); s.textContent = "";
+    if (busy) s.appendChild(h("span", {"class":"spin","aria-hidden":"true"}, "\u21BB "));
+    s.appendChild(document.createTextNode(msg));
+  }
+  function hideStatus(){ $("status").hidden = true; }
+
+  /* ---------- mode switching ---------- */
+  function setMode(m){
+    mode = m; stopCamera();
+    $("modeRx").className = "mode" + (m === "rx" ? " primary" : "");
+    $("modeTab").className = "mode" + (m === "tab" ? " primary" : "");
+    $("capture").hidden = false; setModeText(); showArea("start"); hideStatus();
+    $("capture").scrollIntoView({behavior:"auto", block:"start"});
+  }
+  $("modeRx").onclick = function(){ setMode("rx"); };
+  $("modeTab").onclick = function(){ setMode("tab"); };
+  function showArea(a){
+    $("startArea").hidden = a !== "start"; $("camArea").hidden = a !== "cam"; $("previewArea").hidden = a !== "prev";
+  }
+
+  /* ---------- camera ---------- */
+  function stopCamera(){
+    if (stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; }
+    $("vid").srcObject = null; $("torchBtn").hidden = true;
+  }
+  function startCamera(){
+    var t = T();
+    if (!window.isSecureContext && location.protocol !== "file:"){ status(t.insecure, true); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ status(t.insecure, true); return; }
+    stopCamera(); hideStatus();
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing }, width:{ideal:1920}, height:{ideal:1080} }, audio:false })
+      .then(function(s){
+        stream = s; var v = $("vid"); v.srcObject = s; showArea("cam");
+        var tr = s.getVideoTracks()[0], caps = tr.getCapabilities ? tr.getCapabilities() : {};
+        $("torchBtn").hidden = !caps.torch; $("torchBtn").dataset.on = "0";
+      })
+      .catch(function(e){
+        var n = e && e.name;
+        if (n === "NotAllowedError" || n === "SecurityError") status(t.camBlocked, true);
+        else if (n === "NotFoundError" || n === "OverconstrainedError") status(t.noCam, true);
+        else status(t.camBlocked, true);
+      });
+  }
+  $("openCam").onclick = startCamera;
+  $("closeCam").onclick = function(){ stopCamera(); showArea("start"); };
+  $("flipBtn").onclick = function(){ facing = facing === "environment" ? "user" : "environment"; startCamera(); };
+  $("torchBtn").onclick = function(){
+    if (!stream) return; var tr = stream.getVideoTracks()[0], on = this.dataset.on !== "1";
+    tr.applyConstraints({ advanced: [{ torch: on }] }).then(function(){ $("torchBtn").dataset.on = on ? "1" : "0"; }).catch(function(){});
+  };
+  $("galleryBtn").onclick = $("galleryBtn2").onclick = function(){ $("fileInput").click(); };
+
+  /* ---------- capture / file -> preview ---------- */
+  function fromCanvasSource(src, w, h0){
+    var max = 1600, r = Math.min(1, max / Math.max(w, h0));
+    var c = $("work"); c.width = Math.round(w * r); c.height = Math.round(h0 * r);
+    var ctx = c.getContext("2d"); ctx.drawImage(src, 0, 0, c.width, c.height);
+    var dataUrl = c.toDataURL("image/jpeg", 0.85);
+    imageData = { mime:"image/jpeg", b64:dataUrl.split(",")[1], dataUrl:dataUrl };
+    quality(c);
+  }
+  $("shot").onclick = function(){
+    var v = $("vid"); if (!v.videoWidth) return;
+    fromCanvasSource(v, v.videoWidth, v.videoHeight); stopCamera();
+  };
+  $("fileInput").addEventListener("change", function(e){
+    var f = e.target.files && e.target.files[0]; if (!f) return;
+    var img = new Image(), url = URL.createObjectURL(f);
+    img.onload = function(){ fromCanvasSource(img, img.width, img.height); URL.revokeObjectURL(url); };
+    img.onerror = function(){ status("We could not open that image. Please try another photo.", true); };
+    img.src = url; e.target.value = "";
+  });
+
+  // simple brightness + blur check on a small grayscale copy
+  function quality(canvas){
+    var t = T(), sw = 320, sh = Math.max(1, Math.round(canvas.height * sw / canvas.width));
+    var s = document.createElement("canvas"); s.width = sw; s.height = sh;
+    var sx = s.getContext("2d"); sx.drawImage(canvas, 0, 0, sw, sh);
+    var d = sx.getImageData(0, 0, sw, sh).data, g = new Float32Array(sw * sh), sum = 0, i, x, y;
+    for (i = 0; i < sw * sh; i++){ g[i] = 0.299*d[i*4] + 0.587*d[i*4+1] + 0.114*d[i*4+2]; sum += g[i]; }
+    var mean = sum / (sw * sh), lsum = 0, lsq = 0, n = 0;
+    for (y = 1; y < sh - 1; y++) for (x = 1; x < sw - 1; x++){
+      var k = y*sw + x, lap = 4*g[k] - g[k-1] - g[k+1] - g[k-sw] - g[k+sw];
+      lsum += lap; lsq += lap*lap; n++;
+    }
+    var variance = lsq/n - (lsum/n)*(lsum/n), msg = "";
+    if (mean < 55) msg = t.tooDark; else if (variance < 25) msg = t.tooBlur;
+    $("prevImg").src = imageData.dataUrl;
+    var q = $("qualityMsg"); q.hidden = !msg; q.textContent = msg;
+    $("usePhoto").textContent = msg ? t.useAnyway : t.useThis;
+    $("usePhoto").className = msg ? "" : "primary"; $("retake").className = msg ? "primary" : "";
+    showArea("prev"); hideStatus();
+  }
+  $("retake").onclick = function(){ imageData = null; showArea("start"); startCamera(); };
+  $("usePhoto").onclick = analyze;
+
+  /* ---------- prompts ---------- */
+  function promptRx(lang){
+    return [
+      "You help elderly patients in India understand a doctor's prescription from a photo.",
+      "Read ONLY what is actually written. If a word, dose or timing is not clearly legible, do NOT guess: add it to unclear_items instead.",
+      "If the image is not a prescription or is unreadable, return an empty medicines list and put a short reason in unclear_items.",
+      "Write all explanations in " + lang + " using very simple words suitable for an elderly person. Keep medicine names in English letters exactly as written.",
+      "For each medicine give: name, strength (as written, or empty), purpose (one short plain sentence about what this kind of medicine is generally for), food (one of: before food, after food, with food, any time, unclear),",
+      "morning, afternoon, night (the dose to take then, such as '1 tablet', or empty string if none; convert patterns like 1-0-1 or BD/OD/TDS/HS), duration (as written, or empty), precautions (0-3 short, general, widely known safety notes; do not invent doses).",
+      "interaction_notes: only general concerns widely known between the listed medicines, phrased as something to ask the pharmacist or doctor. Empty list if none.",
+      "confidence: high, medium or low for how well you could read the prescription.",
+      "Never advise starting, stopping or changing a medicine. Never diagnose.",
+      "Reply with JSON only, matching this shape exactly:",
+      '{"medicines":[{"name":"","strength":"","purpose":"","food":"","morning":"","afternoon":"","night":"","duration":"","precautions":[""]}],"interaction_notes":[""],"unclear_items":[""],"confidence":"high|medium|low"}'
+    ].join("\n");
+  }
+  function promptTab(lang){
+    return [
+      "You read the PRINTED label on a medicine strip, bottle or box for an elderly patient in India.",
+      "Identify the medicine ONLY from text printed on the packaging. Never identify a tablet from its colour, shape or size. If no medicine name is clearly printed, set readable to false.",
+      "Fields: readable (true/false), name (brand or generic name as printed), strength (as printed, e.g. 500 mg, or empty), form (tablet, capsule, syrup, etc., or empty),",
+      "purpose (one short plain sentence in " + lang + " about what this medicine is generally used for; empty if not clearly read), label_directions (dosing directions ONLY if printed on the pack, in " + lang + "; otherwise empty),",
+      "precautions (0-3 short, widely known safety notes in " + lang + "), unclear_items (anything printed but not legible).",
+      "Keep the medicine name in English letters. Never advise starting, stopping or changing a medicine. Never say a medicine is safe.",
+      "Reply with JSON only, matching this shape exactly:",
+      '{"readable":true,"name":"","strength":"","form":"","purpose":"","label_directions":"","precautions":[""],"unclear_items":[""]}'
+    ].join("\n");
+  }
+
+  /* ---------- AI call ---------- */
+  function callGemini(prompt){
+    var key = $("key").value.trim(), model = $("model").value.trim() || "gemini-2.5-flash";
+    var url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent?key=" + encodeURIComponent(key);
+    var body = { contents:[{ parts:[{ text:prompt }, { inline_data:{ mime_type:imageData.mime, data:imageData.b64 } }] }],
+                 generationConfig:{ temperature:0.1, responseMimeType:"application/json" } };
+    var ctrl = ("AbortController" in window) ? new AbortController() : null;
+    var timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 30000);
+    return fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body), signal: ctrl ? ctrl.signal : undefined })
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
+      .then(function(res){
+        clearTimeout(timer);
+        if (!res.ok) throw new Error((res.j && res.j.error && res.j.error.message) || "Request failed.");
+        var c = res.j.candidates && res.j.candidates[0];
+        var txt = c && c.content && c.content.parts && c.content.parts.map(function(p){ return p.text || ""; }).join("");
+        if (!txt) throw new Error("The AI returned no answer. Please try a clearer photo.");
+        try{ return JSON.parse(txt.replace(/```json|```/g, "").trim()); }catch(e){ throw new Error("The answer could not be read. Please try again."); }
+      })
+      .catch(function(e){ clearTimeout(timer); if (e.name === "AbortError") throw new Error("It took too long. Please try again."); throw e; });
+  }
+  function analyze(){
+    var t = T();
+    if (!$("key").value.trim()){ $("settings").open = true; status(t.needKey, true); return; }
+    if (!imageData) return;
+    var lang = $("lang").value; lastLang = lang; $("usePhoto").disabled = true;
+    status(t.reading, false, true);
+    var p = mode === "rx" ? promptRx(lang) : promptTab(lang);
+    callGemini(p).catch(function(){ return callGemini(p); })   // one automatic retry
+      .then(function(data){
+        hideStatus();
+        if (mode === "rx") renderRx(data, lang, false); else renderTab(data, lang);
+      })
+      .catch(function(err){ status("Something went wrong: " + err.message, true); })
+      .then(function(){ $("usePhoto").disabled = false; });
+  }
+
+  /* ---------- schedule helpers ---------- */
+  function foodText(t, f){ f = str(f).toLowerCase(); return t.food[f] || ""; }
+  function dayPlan(meds, t){
+    var day = h("div", {"class":"day"});
+    ["morning","afternoon","night"].forEach(function(slot){
+      var ul = h("ul"), n = 0;
+      meds.forEach(function(m){
+        var dose = str(m[slot]); if (!dose) return; n++;
+        var ft = foodText(t, m.food);
+        ul.appendChild(h("li", null, str(m.name) + (str(m.strength) ? " " + str(m.strength) : "") + " \u2013 " + dose, ft ? h("span", {"class":"food"}, ft) : null));
+      });
+      if (!n) ul.appendChild(h("li", {"class":"none"}, t.none));
+      day.appendChild(h("div", {"class":"band " + slot}, h("h3", null, t[slot]), ul));
+    });
+    return day;
+  }
+  function disclaimer(t){ return h("p", {"class":"disc"}, t.disc); }
+
+  /* ---------- render: prescription ---------- */
+  function renderRx(data, lang, isSample){
+    var t = (isSample ? UI.English : (UI[lang] || UI.English));
+    var meds = Array.isArray(data.medicines) ? data.medicines.filter(function(m){ return m && str(m.name); }) : [];
+    var box = $("result"); box.hidden = false; box.textContent = "";
+    lastLang = isSample ? "English" : lang;
+    if (isSample) box.appendChild(h("p", {"class":"banner"}, "Offline sample (English). This is not from your photo."));
+    if (!meds.length){
+      box.appendChild(h("div", {"class":"notice"}, t.empty));
+      var u0 = arr(data.unclear_items); if (u0.length) box.appendChild(h("p", null, u0.join(" ")));
+      box.appendChild(disclaimer(t)); finishResult(box); return;
+    }
+    rxData = { meds: meds }; checked = {};
+    if (str(data.confidence).toLowerCase() === "low") box.appendChild(h("div", {"class":"notice"}, t.low));
+    box.appendChild(h("h2", null, t.plan)); box.appendChild(dayPlan(meds, t));
+    box.appendChild(h("h2", {style:"margin-top:20px"}, t.meds));
+    meds.forEach(function(m){
+      var card = h("div", {"class":"med"}, h("h3", null, str(m.name), str(m.strength) ? h("span", {"class":"strength"}, " " + str(m.strength)) : null),
+        str(m.purpose) ? h("p", null, str(m.purpose)) : null);
+      var pc = arr(m.precautions); if (pc.length){ var ul = h("ul"); pc.forEach(function(p){ ul.appendChild(h("li", null, p)); }); card.appendChild(ul); }
+      box.appendChild(card);
+    });
+    var inter = arr(data.interaction_notes);
+    if (inter.length) box.appendChild(h("div", {"class":"notice"}, h("strong", null, t.ask + ": "), inter.join(" ")));
+    var un = arr(data.unclear_items);
+    if (un.length){ var u = h("ul"); un.forEach(function(x){ u.appendChild(h("li", null, x)); }); box.appendChild(h("div", {"class":"notice"}, h("strong", null, t.unclear), u)); }
+    var actions = h("div", {"class":"actions"});
+    var rb = h("button", {type:"button", "class":"primary"}, t.read); rb.onclick = function(){ speak(spokenText(meds, t)); };
+    var pb = h("button", {type:"button"}, t.print); pb.onclick = function(){ window.print(); };
+    var cb = h("button", {type:"button"}, t.scanTab); cb.onclick = function(){ setMode("tab"); };
+    actions.appendChild(rb); actions.appendChild(pb); actions.appendChild(cb);
+    box.appendChild(actions); box.appendChild(disclaimer(t)); finishResult(box);
+  }
+  function spokenText(meds, t){
+    var parts = [];
+    ["morning","afternoon","night"].forEach(function(slot){
+      var items = []; meds.forEach(function(m){ var d = str(m[slot]); if (d) items.push(str(m.name) + " " + d); });
+      if (items.length) parts.push(t[slot] + ": " + items.join(", "));
+    });
+    return parts.join(". ") + ". " + t.disc;
+  }
+  function speak(text){
+    if (!("speechSynthesis" in window)){ status("Reading aloud is not supported in this browser.", true); return; }
+    var want = SPEECH[lastLang] || "en-IN", voices = window.speechSynthesis.getVoices() || [];
+    if (voices.length && !voices.some(function(v){ return v.lang && v.lang.replace("_","-").toLowerCase().indexOf(want.slice(0,2)) === 0; })){
+      status("Voice not available on this device for " + lastLang + ".", true); return;
+    }
+    window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(text); u.lang = want; u.rate = 0.9; window.speechSynthesis.speak(u);
+  }
+  function finishResult(box){
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    box.scrollIntoView({behavior: reduce ? "auto" : "smooth", block:"start"});
+  }
+
+  /* ---------- matching (cover vs prescription) ---------- */
+  function norm(s){ return str(s).toLowerCase().replace(/\b(tablets?|tabs?|caps?|capsules?|ip|bp|usp|sr|xr|er|forte)\b/g, " ").replace(/[^a-z]/g, ""); }
+  function strengthOf(s){ var m = str(s).toLowerCase().replace(/\s+/g, "").match(/(\d+(?:\.\d+)?)(mcg|mg|g|ml|iu)/); return m ? m[1] + m[2] : ""; }
+  function findMatch(name){
+    if (!rxData) return -1; var a = norm(name); if (a.length < 3) return -1;
+    for (var i = 0; i < rxData.meds.length; i++){
+      var b = norm(rxData.meds[i].name); if (b.length < 3) continue;
+      if (a === b || (a.length >= 4 && b.indexOf(a) !== -1) || (b.length >= 4 && a.indexOf(b) !== -1)) return i;
+    }
+    return -1;
+  }
+
+  /* ---------- render: tablet cover ---------- */
+  function renderTab(data, lang){
+    var t = UI[lang] || UI.English, box = $("result"); box.hidden = false; box.textContent = ""; lastLang = lang;
+    var readable = data && data.readable !== false && str(data.name);
+    var tablet = readable ? data : null;
+
+    if (rxData){ box.appendChild(h("h2", null, t.checklist)); box.appendChild(checklist(t)); }
+
+    if (!tablet){
+      box.appendChild(h("div", {"class":"verdict warn"}, h("h3", null, t.tabNoLabel), h("p", null, t.tabNoLabelSub)));
+      var un0 = arr(data && data.unclear_items); if (un0.length) box.appendChild(h("p", null, un0.join(" ")));
+      tabActions(box, t); box.appendChild(disclaimer(t)); finishResult(box); return;
+    }
+    var name = str(tablet.name), strength = str(tablet.strength);
+    var idx = findMatch(name), state, head, sub = [];
+    if (!rxData){
+      state = "warn"; head = name + (strength ? " " + strength : ""); sub.push(h("p", null, t.noRxMatchHint));
+    } else if (idx < 0){
+      state = "bad"; head = t.notOn; sub.push(h("p", null, name + (strength ? " " + strength : "")), h("p", null, h("strong", null, t.askBefore)));
+    } else {
+      var rm = rxData.meds[idx], a = strengthOf(strength), b = strengthOf(rm.strength);
+      if (a && b && a !== b){
+        state = "warn"; head = t.strengthDiff;
+        sub.push(h("p", null, t.coverSays + ": " + strength), h("p", null, t.rxStrength + ": " + str(rm.strength)), h("p", null, h("strong", null, t.askBefore)));
+      } else {
+        state = "ok"; head = t.match; checked[idx] = true;
+        sub.push(h("p", null, str(rm.name) + (str(rm.strength) ? " " + str(rm.strength) : "")));
+      }
+    }
+    var verdict = h("div", {"class":"verdict " + state}, h("h3", null, head));
+    sub.forEach(function(x){ verdict.appendChild(x); });
+    box.appendChild(verdict);
+
+    // what it is for
+    var info = h("div", {"class":"med"}, h("h3", null, name, strength ? h("span", {"class":"strength"}, " " + strength) : null));
+    if (str(tablet.purpose)) info.appendChild(h("p", null, h("strong", null, t.usedFor + ": "), str(tablet.purpose)));
+    if (str(tablet.label_directions)) info.appendChild(h("p", null, h("strong", null, t.onLabel + ": "), str(tablet.label_directions)));
+    var pc = arr(tablet.precautions); if (pc.length){ var ul = h("ul"); pc.forEach(function(p){ ul.appendChild(h("li", null, p)); }); info.appendChild(ul); }
+    box.appendChild(info);
+
+    // when to take: only from the prescription
+    if (state === "ok"){
+      var m = rxData.meds[idx];
+      box.appendChild(h("h2", {style:"margin-top:16px"}, t.takeAt));
+      box.appendChild(dayPlan([m], t));
+    } else if (!rxData){
+      box.appendChild(h("div", {"class":"notice"}, t.needRx));
+    }
+    tabActions(box, t); box.appendChild(disclaimer(t)); finishResult(box);
+    if (rxData){ var cl = box.querySelector(".check"); if (cl) cl.replaceWith(checklist(t)); }
+  }
+  function checklist(t){
+    var ul = h("ul", {"class":"check"});
+    rxData.meds.forEach(function(m, i){
+      var on = !!checked[i];
+      ul.appendChild(h("li", null, h("span", {"class":"tick" + (on ? " on" : ""), "aria-hidden":"true"}, on ? "\u2713" : ""),
+        h("span", null, str(m.name) + (str(m.strength) ? " " + str(m.strength) : "") + (on ? " \u2013 " + t.checkedWord : ""))));
+    });
+    return ul;
+  }
+  function tabActions(box, t){
+    var a = h("div", {"class":"actions"});
+    var s = h("button", {type:"button", "class":"primary"}, t.scanAnother); s.onclick = function(){ setMode("tab"); };
+    var d = h("button", {type:"button"}, t.done); d.onclick = function(){ $("result").hidden = true; $("capture").hidden = true; window.scrollTo(0,0); };
+    a.appendChild(s); a.appendChild(d); box.appendChild(a);
+  }
+
+  /* ---------- offline sample (labelled) ---------- */
+  var SAMPLE = { medicines:[
+    {name:"Metformin",strength:"500 mg",purpose:"Helps keep blood sugar under control.",food:"after food",morning:"1 tablet",afternoon:"",night:"1 tablet",precautions:["Take with or after meals to avoid stomach upset."]},
+    {name:"Aspirin",strength:"75 mg",purpose:"Helps stop blood from forming clots.",food:"after food",morning:"",afternoon:"1 tablet",night:"",precautions:["Tell your doctor if you see black stools or unusual bleeding."]},
+    {name:"Amlodipine",strength:"5 mg",purpose:"Helps keep blood pressure under control.",food:"any time",morning:"",afternoon:"",night:"1 tablet",precautions:["Do not stop it on your own. Ask your doctor first."]}],
+    interaction_notes:["Ask your pharmacist to confirm these medicines are safe together for you."], unclear_items:[], confidence:"high" };
+  $("sample").onclick = function(){ renderRx(SAMPLE, "English", true); hideStatus(); };
+
+  applyLang();
+  window.addEventListener("pagehide", stopCamera);
+})();
+</script>
+</body>
+</html>
